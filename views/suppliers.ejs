@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><title>Suppliers</title><link rel="stylesheet" href="/css/style.css"></head>
+<body>
+<h2>Trusted Material Suppliers</h2>
+<ul>
+<% suppliers.forEach(supplier => { %>
+<li><strong><%= supplier.name %></strong><br>
+Material: <%= supplier.material %> <br>
+Price: <%= supplier.price %><br>
+Contact: <%= supplier.contact %></li>
+<% }); %>
+</ul>
+<a href="/">← Back</a>
+</body>
+</html>
