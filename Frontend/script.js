@@ -8,7 +8,7 @@ let authToken = null;
 // API Configuration
 const API_BASE_URL = 'http://localhost:5000/api';
 
-// Initialize from localStorage
+// Initialize from localStorage (only for auth, not cart)
 authToken = localStorage.getItem('authToken');
 currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 
@@ -25,12 +25,13 @@ const apiCall = async (endpoint, options = {}) => {
 
   try {
     const response = await fetch(url, config);
-    const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.message || 'API request failed');
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'API request failed');
     }
     
+    const data = await response.json();
     return data;
   } catch (error) {
     console.error('API Error:', error);
@@ -467,7 +468,7 @@ const fetchProducts = async (filters = {}) => {
     return data;
   } catch (error) {
     console.error('Error fetching products:', error);
-    return [];
+    throw error;
   }
 };
 
@@ -499,6 +500,10 @@ function applyFilters() {
   fetchProducts(filters).then(products => {
     renderSuppliers(products);
     document.getElementById('suppliers-loading').style.display = 'none';
+  }).catch(error => {
+    console.error('Error applying filters:', error);
+    document.getElementById('suppliers-loading').style.display = 'none';
+    showToast('Error loading products', 'error');
   });
 }
 
@@ -509,7 +514,14 @@ async function renderSuppliers(products = null) {
   
   if (!products) {
     loadingSpinner.style.display = 'block';
-    products = await fetchProducts();
+    try {
+      products = await fetchProducts();
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      container.innerHTML = '<div class="error-state"><i class="fas fa-exclamation-circle"></i><p>Error loading suppliers. Please try again.</p></div>';
+      loadingSpinner.style.display = 'none';
+      return;
+    }
     loadingSpinner.style.display = 'none';
   }
   
@@ -584,24 +596,26 @@ async function renderSuppliers(products = null) {
   });
 }
 
+// MongoDB-based Cart functions (NO localStorage)
 async function addToCartFromList(productId) {
+  console.log('Adding product to cart:', productId);
   try {
     await addToCartAPI(productId);
     showToast('Product added to cart!', 'success');
     updateCartCount();
   } catch (error) {
+    console.error('Error adding to cart:', error);
     showToast('Error adding to cart: ' + error.message, 'error');
   }
 }
 
-// Cart functions
 const fetchCart = async () => {
   try {
     const data = await apiCall('/cart');
     return data;
   } catch (error) {
     console.error('Error fetching cart:', error);
-    return { items: [], totalAmount: 0 };
+    throw error;
   }
 };
 
@@ -611,8 +625,14 @@ const addToCartAPI = async (productId, quantity = 1) => {
       method: 'POST',
       body: JSON.stringify({ productId, quantity })
     });
+    
+    // Update local cart state
+    const updatedCart = await fetchCart();
+    cart = updatedCart.items || [];
+    
     return data;
   } catch (error) {
+    console.error('Error adding to cart:', error);
     throw error;
   }
 };
@@ -622,8 +642,14 @@ const removeFromCartAPI = async (itemId) => {
     const data = await apiCall(`/cart/remove/${itemId}`, {
       method: 'DELETE'
     });
+    
+    // Update local cart state
+    const updatedCart = await fetchCart();
+    cart = updatedCart.items || [];
+    
     return data;
   } catch (error) {
+    console.error('Error removing from cart:', error);
     throw error;
   }
 };
@@ -633,8 +659,13 @@ const checkoutCart = async () => {
     const data = await apiCall('/cart/checkout', {
       method: 'POST'
     });
+    
+    // Clear local cart state
+    cart = [];
+    
     return data;
   } catch (error) {
+    console.error('Error during checkout:', error);
     throw error;
   }
 };
@@ -646,6 +677,8 @@ async function loadVendorCart() {
     updateCartCount();
   } catch (error) {
     console.error('Error loading cart:', error);
+    cart = [];
+    updateCartCount();
   }
 }
 
@@ -671,6 +704,8 @@ async function renderCartItems() {
   const totalContainer = document.getElementById("cart-total");
 
   try {
+    container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Loading cart...</p></div>';
+    
     const cartData = await fetchCart();
     cart = cartData.items || [];
 
@@ -709,6 +744,7 @@ async function renderCartItems() {
       </div>
     `;
   } catch (error) {
+    console.error('Error rendering cart:', error);
     container.innerHTML = '<div class="error-state">Error loading cart</div>';
   }
 }
@@ -742,6 +778,9 @@ async function placeOrder() {
   }
 }
 
+// Rest of the functions remain the same...
+// (Including supplier dashboard functions, product management, profile management, etc.)
+
 // Supplier Dashboard Functions
 function switchTab(tabName) {
   document.querySelectorAll(".tab-button").forEach((btn) => btn.classList.remove("active"));
@@ -768,6 +807,7 @@ async function loadSupplierStats() {
       document.getElementById('active-products').textContent = products.length;
     } catch (error) {
       console.error('Error loading stats:', error);
+      document.getElementById('active-products').textContent = '0';
     }
   }
 }
@@ -811,6 +851,7 @@ async function renderSupplierProducts() {
       )
       .join("");
   } catch (error) {
+    console.error('Error loading products:', error);
     container.innerHTML = '<div class="error-state">Error loading products</div>';
   }
 }
@@ -1025,9 +1066,13 @@ document.addEventListener("click", (e) => {
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
+  console.log('Application starting...');
+  
   if (authToken && currentUser) {
+    console.log('User found in localStorage:', currentUser);
     setUserType(currentUser.userType);
   } else {
+    console.log('No user found, showing auth forms');
     showAuthForms();
   }
 });
