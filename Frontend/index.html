@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VendorConnect - Street Food Marketplace</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Landing Page -->
+    <div id="landing-page" class="landing-container">
+        <div class="landing-content">
+            <div class="hero-section">
+                <h1 class="main-title">VendorConnect</h1>
+                <p class="main-subtitle">Connecting Street Food Vendors with Trusted Suppliers</p>
+
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-shield-alt feature-icon green"></i>
+                        <h3>Verified Suppliers</h3>
+                        <p>All suppliers are verified for quality and reliability</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-chart-line feature-icon blue"></i>
+                        <h3>Better Prices</h3>
+                        <p>Access wholesale rates and bulk discounts</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-truck feature-icon purple"></i>
+                        <h3>Easy Delivery</h3>
+                        <p>Reliable delivery to your location</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="user-selection">
+                <div class="user-card" onclick="setUserType('vendor')">
+                    <div class="user-card-header">
+                        <i class="fas fa-users user-icon orange"></i>
+                        <h2>I'm a Street Food Vendor</h2>
+                        <p>Find trusted suppliers for raw materials at wholesale prices</p>
+                    </div>
+                    <button class="btn btn-primary">Get Started as Vendor</button>
+                </div>
+
+                <div class="user-card" onclick="setUserType('supplier')">
+                    <div class="user-card-header">
+                        <i class="fas fa-truck user-icon green"></i>
+                        <h2>I'm a Supplier</h2>
+                        <p>Connect with street food vendors and grow your business</p>
+                    </div>
+                    <button class="btn btn-outline">Get Started as Supplier</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vendor Dashboard -->
+    <div id="vendor-dashboard" class="dashboard" style="display: none;">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo orange">VendorConnect</h1>
+                <div class="header-actions">
+                    <button class="btn btn-outline" onclick="openCart()">
+                        <i class="fas fa-shopping-cart"></i>
+                        Cart (<span id="cart-count">0</span>)
+                    </button>
+                    <button class="btn btn-ghost" onclick="switchUser()">Switch User</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Dish Search Section -->
+            <div class="dish-search-section" style="margin-bottom:2rem;">
+                <h3>Search by Dish</h3>
+                <div style="display:flex;gap:1rem;align-items:center;">
+                    <input id="dish-input" type="text" placeholder="Enter dish name (e.g. Chicken Curry, Biryani, Fish Curry)" class="search-input" autocomplete="off" style="flex:1;">
+                    <!-- <input id="dish-input" type="text" placeholder="Enter dish name (e.g. Vada Pav)" class="search-input" autocomplete="off" style="flex:1;"> -->
+                    <button class="btn btn-primary" onclick="searchDishIngredients()">Find Ingredients</button>
+                </div>
+                <div id="dish-ingredients-list" style="margin-top:1rem;"></div>
+            </div>
+
+            <div class="search-section">
+                <h2>Find Trusted Suppliers</h2>
+                <div class="search-filters">
+                    <input type="text" placeholder="Search for products..." class="search-input">
+                    <select class="filter-select">
+                        <option value="">Category</option>
+                        <option value="vegetables">Vegetables</option>
+                        <option value="spices">Spices</option>
+                        <option value="seafood">Seafood</option>
+                        <option value="grains">Grains</option>
+                    </select>
+                    <select class="filter-select">
+                        <option value="">Location</option>
+                        <option value="mumbai">Mumbai</option>
+                        <option value="delhi">Delhi</option>
+                        <option value="bangalore">Bangalore</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="suppliers-list" class="suppliers-container">
+                <!-- Suppliers will be populated by JavaScript -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Supplier Dashboard -->
+    <div id="supplier-dashboard" class="dashboard" style="display: none;">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo green">VendorConnect</h1>
+                <span class="dashboard-label">Supplier Dashboard</span>
+                <button class="btn btn-ghost" onclick="switchUser()">Switch User</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="tabs">
+                <div class="tab-list">
+                    <button class="tab-button active" onclick="switchTab('dashboard')">Dashboard</button>
+                    <button class="tab-button" onclick="switchTab('products')">My Products</button>
+                    <button class="tab-button" onclick="switchTab('orders')">Orders</button>
+                    <button class="tab-button" onclick="switchTab('profile')">Profile</button>
+                </div>
+
+                <div id="tab-dashboard" class="tab-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div>
+                                    <p class="stat-label">Total Orders</p>
+                                    <p class="stat-value">156</p>
+                                </div>
+                                <i class="fas fa-shopping-cart stat-icon blue"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div>
+                                    <p class="stat-label">Revenue</p>
+                                    <p class="stat-value">₹45,230</p>
+                                </div>
+                                <i class="fas fa-chart-line stat-icon green"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div>
+                                    <p class="stat-label">Active Products</p>
+                                    <p class="stat-value">23</p>
+                                </div>
+                                <i class="fas fa-users stat-icon purple"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <div>
+                                    <p class="stat-label">Rating</p>
+                                    <p class="stat-value">4.8</p>
+                                </div>
+                                <i class="fas fa-star stat-icon yellow"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recent Orders</h3>
+                        </div>
+                        <div class="card-content">
+                            <div id="recent-orders">
+                                <!-- Orders will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-products" class="tab-content">
+                    <div class="section-header">
+                        <h2>My Products</h2>
+                        <button class="btn btn-primary" onclick="openAddProductModal()">Add New Product</button>
+                    </div>
+                    <div id="products-grid" class="products-grid">
+                        <!-- Products will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div id="tab-orders" class="tab-content">
+                    <h2>Orders</h2>
+                    <div class="orders-list">
+                        <!-- Orders will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div id="tab-profile" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Supplier Profile</h3>
+                            <p>Manage your business information</p>
+                        </div>
+                        <div class="card-content">
+                            <form class="profile-form">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Business Name</label>
+                                        <input type="text" value="Fresh Farm Supplies">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Contact Person</label>
+                                        <input type="text" value="Ramesh Kumar">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Business Address</label>
+                                    <textarea>Shop 45, Mumbai Central Market, Mumbai - 400001</textarea>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Phone Number</label>
+                                        <input type="tel" value="+91 98765 43210">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Email</label>
+                                        <input type="email" value="ramesh@freshfarm.com">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Business Hours</label>
+                                    <input type="text" value="6:00 AM - 8:00 PM">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Update Profile</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Cart Modal -->
+    <div id="cart-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Your Cart</h3>
+                <button class="modal-close" onclick="closeCart()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="cart-items">
+                    <!-- Cart items will be populated by JavaScript -->
+                </div>
+                <div id="cart-total" class="cart-total">
+                    <!-- Total will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="add-product-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Product</h3>
+                <button class="modal-close" onclick="closeAddProductModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="add-product-form" class="product-form">
+                    <div class="form-group">
+                        <label>Product Name</label>
+                        <input type="text" id="product-name" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Price per unit</label>
+                            <input type="number" id="product-price" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Unit</label>
+                            <select id="product-unit" required>
+                                <option value="">Select unit</option>
+                                <option value="kg">Kilogram</option>
+                                <option value="gram">Gram</option>
+                                <option value="piece">Piece</option>
+                                <option value="liter">Liter</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Minimum Order Quantity</label>
+                        <input type="number" id="product-min-order" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="product-description"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Product</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
