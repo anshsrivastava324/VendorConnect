@@ -1,0 +1,25 @@
+# Dependencies (if you add any build tools later)
+node_modules/
+
+# Build directories
+dist/
+build/
+
+# Environment files (if you add any)
+.env
+.env.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp

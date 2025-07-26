@@ -1,7 +1,38 @@
 {
+  "name": "vendorconnect-project",
+  "version": "1.0.0",
+  "description": "VendorConnect - Complete marketplace connecting street food vendors with trusted suppliers",
+  "scripts": {
+    "install-backend": "cd backend && npm install",
+    "install-all": "npm run install-backend",
+    "start-backend": "cd backend && npm start",
+    "dev-backend": "cd backend && npm run dev",
+    "start": "npm run start-backend"
+  },
+  "keywords": [
+    "vendorconnect",
+    "street-food",
+    "marketplace",
+    "vendor",
+    "supplier",
+    "full-stack"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/vendorconnect.git"
+  },
   "dependencies": {
-    "ejs": "^3.1.10",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
     "express": "^5.1.0",
-    "express-session": "^1.18.2"
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.16.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }

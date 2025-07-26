@@ -8,6 +8,124 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+    <!-- Authentication Section -->
+    <div id="auth-section" class="auth-container" style="display: none;">
+        <div class="auth-content">
+            <div class="auth-header">
+                <h1 class="auth-logo">VendorConnect</h1>
+                <p class="auth-subtitle">Connecting Street Food Vendors with Trusted Suppliers</p>
+            </div>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+                <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="login-form" class="auth-form active">
+                <h2>Welcome Back</h2>
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email</label>
+                        <input type="email" id="login-email" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="login-password" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary auth-btn">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </form>
+                <div id="login-error" class="error-message" style="display: none;"></div>
+                
+                <!-- Login Switch Links -->
+                <div class="auth-switch-links">
+                    <p class="switch-text">New to VendorConnect?</p>
+                    <div class="switch-options">
+                        <a href="#" onclick="switchToRegisterAsVendor()" class="switch-link vendor-link">
+                            <i class="fas fa-users"></i> Sign up as Vendor
+                        </a>
+                        <span class="divider">|</span>
+                        <a href="#" onclick="switchToRegisterAsSupplier()" class="switch-link supplier-link">
+                            <i class="fas fa-truck"></i> Sign up as Supplier
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form" class="auth-form">
+                <h2>Join VendorConnect</h2>
+                <form onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label><i class="fas fa-user-tag"></i> I am a:</label>
+                        <select id="register-usertype" onchange="toggleBusinessFields()" required>
+                            <option value="">Select your role...</option>
+                            <option value="vendor">Street Food Vendor</option>
+                            <option value="supplier">Supplier</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-user"></i> Full Name</label>
+                            <input type="text" id="register-name" placeholder="Enter your full name" required>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-envelope"></i> Email</label>
+                            <input type="email" id="register-email" placeholder="Enter your email" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> Password</label>
+                        <input type="password" id="register-password" placeholder="Minimum 6 characters" required minlength="6">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-phone"></i> Phone</label>
+                            <input type="tel" id="register-phone" placeholder="Enter phone number" required>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-map-marker-alt"></i> Location</label>
+                            <input type="text" id="register-location" placeholder="Enter your location" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Business fields for suppliers -->
+                    <div id="business-fields" style="display: none;">
+                        <div class="business-section-header">
+                            <h4><i class="fas fa-building"></i> Business Information</h4>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-store"></i> Business Name</label>
+                            <input type="text" id="register-business-name" placeholder="Enter business name">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-address-card"></i> Business Address</label>
+                            <textarea id="register-business-address" placeholder="Enter complete business address"></textarea>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary auth-btn">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </form>
+                <div id="register-error" class="error-message" style="display: none;"></div>
+                <div id="register-success" class="success-message" style="display: none;"></div>
+                
+                <!-- Register Switch Links -->
+                <div class="auth-switch-links">
+                    <p class="switch-text">Already have an account?</p>
+                    <div class="switch-options">
+                        <a href="#" onclick="switchToLogin()" class="switch-link login-link">
+                            <i class="fas fa-sign-in-alt"></i> Sign in here
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Landing Page -->
     <div id="landing-page" class="landing-container">
         <div class="landing-content">
@@ -61,49 +179,86 @@
         <header class="header">
             <div class="header-content">
                 <h1 class="logo orange">VendorConnect</h1>
+                <div class="user-info">
+                    <span class="welcome-text">Welcome, <span id="vendor-name">Vendor</span></span>
+                </div>
                 <div class="header-actions">
                     <button class="btn btn-outline" onclick="openCart()">
                         <i class="fas fa-shopping-cart"></i>
                         Cart (<span id="cart-count">0</span>)
                     </button>
-                    <button class="btn btn-ghost" onclick="switchUser()">Switch User</button>
+                    <div class="dropdown">
+                        <button class="btn btn-ghost dropdown-toggle" type="button" onclick="toggleDropdown(event)">
+                            <i class="fas fa-user-circle"></i>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="dropdown-menu" id="user-dropdown">
+                            <button type="button" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
 
         <main class="main-content">
             <!-- Dish Search Section -->
-            <div class="dish-search-section" style="margin-bottom:2rem;">
-                <h3>Search by Dish</h3>
-                <div style="display:flex;gap:1rem;align-items:center;">
-                    <input id="dish-input" type="text" placeholder="Enter dish name (e.g. Chicken Curry, Biryani, Fish Curry)" class="search-input" autocomplete="off" style="flex:1;">
-                    <!-- <input id="dish-input" type="text" placeholder="Enter dish name (e.g. Vada Pav)" class="search-input" autocomplete="off" style="flex:1;"> -->
-                    <button class="btn btn-primary" onclick="searchDishIngredients()">Find Ingredients</button>
+            <div class="dish-search-section">
+                <div class="section-header-with-icon">
+                    <h3><i class="fas fa-search"></i> Search by Dish</h3>
+                    <p class="section-subtitle">Enter a dish name to find all required ingredients</p>
                 </div>
-                <div id="dish-ingredients-list" style="margin-top:1rem;"></div>
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <input id="dish-input" type="text" placeholder="Enter dish name (e.g. Biryani, Chicken Curry, Fish Fry)" class="search-input" autocomplete="off">
+                        <i class="fas fa-utensils search-input-icon"></i>
+                    </div>
+                    <button class="btn btn-primary search-btn" onclick="searchDishIngredients()">
+                        <i class="fas fa-search"></i> Find Ingredients
+                    </button>
+                </div>
+                <div id="dish-ingredients-list" class="ingredients-results"></div>
             </div>
 
             <div class="search-section">
-                <h2>Find Trusted Suppliers</h2>
+                <div class="section-header-with-icon">
+                    <h2><i class="fas fa-store"></i> Browse Suppliers</h2>
+                    <p class="section-subtitle">Find trusted suppliers for your ingredients</p>
+                </div>
                 <div class="search-filters">
-                    <input type="text" placeholder="Search for products..." class="search-input">
-                    <select class="filter-select">
-                        <option value="">Category</option>
+                    <div class="filter-input-wrapper">
+                        <input type="text" placeholder="Search for products..." class="search-input" id="product-search">
+                        <i class="fas fa-search filter-icon"></i>
+                    </div>
+                    <select class="filter-select" id="category-filter">
+                        <option value="">All Categories</option>
                         <option value="vegetables">Vegetables</option>
                         <option value="spices">Spices</option>
                         <option value="seafood">Seafood</option>
                         <option value="grains">Grains</option>
+                        <option value="dairy">Dairy</option>
+                        <option value="meat">Meat</option>
                     </select>
-                    <select class="filter-select">
-                        <option value="">Location</option>
+                    <select class="filter-select" id="location-filter">
+                        <option value="">All Locations</option>
                         <option value="mumbai">Mumbai</option>
                         <option value="delhi">Delhi</option>
                         <option value="bangalore">Bangalore</option>
+                        <option value="chennai">Chennai</option>
+                        <option value="kolkata">Kolkata</option>
                     </select>
+                    <button class="btn btn-outline filter-btn" onclick="applyFilters()">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
                 </div>
             </div>
 
             <div id="suppliers-list" class="suppliers-container">
+                <div class="loading-spinner" id="suppliers-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading suppliers...</p>
+                </div>
                 <!-- Suppliers will be populated by JavaScript -->
             </div>
         </main>
@@ -114,18 +269,41 @@
         <header class="header">
             <div class="header-content">
                 <h1 class="logo green">VendorConnect</h1>
-                <span class="dashboard-label">Supplier Dashboard</span>
-                <button class="btn btn-ghost" onclick="switchUser()">Switch User</button>
+                <div class="user-info">
+                    <span class="welcome-text">Welcome, <span id="supplier-name">Supplier</span></span>
+                    <span class="dashboard-label">Supplier Dashboard</span>
+                </div>
+                <div class="header-actions">
+                    <div class="dropdown">
+                        <button class="btn btn-ghost dropdown-toggle" type="button" onclick="toggleDropdown(event)">
+                            <i class="fas fa-user-circle"></i>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="dropdown-menu" id="supplier-dropdown">
+                            <button type="button" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 
         <main class="main-content">
             <div class="tabs">
                 <div class="tab-list">
-                    <button class="tab-button active" onclick="switchTab('dashboard')">Dashboard</button>
-                    <button class="tab-button" onclick="switchTab('products')">My Products</button>
-                    <button class="tab-button" onclick="switchTab('orders')">Orders</button>
-                    <button class="tab-button" onclick="switchTab('profile')">Profile</button>
+                    <button class="tab-button active" onclick="switchTab('dashboard')">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </button>
+                    <button class="tab-button" onclick="switchTab('products')">
+                        <i class="fas fa-boxes"></i> My Products
+                    </button>
+                    <button class="tab-button" onclick="switchTab('orders')">
+                        <i class="fas fa-shopping-bag"></i> Orders
+                    </button>
+                    <button class="tab-button" onclick="switchTab('profile')">
+                        <i class="fas fa-user-cog"></i> Profile
+                    </button>
                 </div>
 
                 <div id="tab-dashboard" class="tab-content active">
@@ -134,7 +312,7 @@
                             <div class="stat-content">
                                 <div>
                                     <p class="stat-label">Total Orders</p>
-                                    <p class="stat-value">156</p>
+                                    <p class="stat-value" id="total-orders">0</p>
                                 </div>
                                 <i class="fas fa-shopping-cart stat-icon blue"></i>
                             </div>
@@ -143,7 +321,7 @@
                             <div class="stat-content">
                                 <div>
                                     <p class="stat-label">Revenue</p>
-                                    <p class="stat-value">₹45,230</p>
+                                    <p class="stat-value" id="total-revenue">₹0</p>
                                 </div>
                                 <i class="fas fa-chart-line stat-icon green"></i>
                             </div>
@@ -152,29 +330,37 @@
                             <div class="stat-content">
                                 <div>
                                     <p class="stat-label">Active Products</p>
-                                    <p class="stat-value">23</p>
+                                    <p class="stat-value" id="active-products">0</p>
                                 </div>
-                                <i class="fas fa-users stat-icon purple"></i>
+                                <i class="fas fa-cube stat-icon purple"></i>
                             </div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-content">
                                 <div>
                                     <p class="stat-label">Rating</p>
-                                    <p class="stat-value">4.8</p>
+                                    <p class="stat-value" id="supplier-rating">4.8</p>
                                 </div>
                                 <i class="fas fa-star stat-icon yellow"></i>
                             </div>
                         </div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Recent Orders</h3>
-                        </div>
-                        <div class="card-content">
-                            <div id="recent-orders">
-                                <!-- Orders will be populated by JavaScript -->
+                    <div class="dashboard-cards">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-clock"></i> Recent Orders</h3>
+                                <button class="btn btn-outline btn-sm" onclick="refreshOrders()">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                            <div class="card-content">
+                                <div id="recent-orders">
+                                    <div class="loading-spinner">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                        <p>Loading orders...</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -182,58 +368,93 @@
 
                 <div id="tab-products" class="tab-content">
                     <div class="section-header">
-                        <h2>My Products</h2>
-                        <button class="btn btn-primary" onclick="openAddProductModal()">Add New Product</button>
+                        <div>
+                            <h2><i class="fas fa-boxes"></i> My Products</h2>
+                            <p class="section-subtitle">Manage your product inventory</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="openAddProductModal()">
+                            <i class="fas fa-plus"></i> Add New Product
+                        </button>
+                    </div>
+                    <div class="products-filter">
+                        <input type="text" placeholder="Search products..." class="search-input" id="product-filter">
+                        <select class="filter-select" id="stock-filter">
+                            <option value="">All Products</option>
+                            <option value="instock">In Stock</option>
+                            <option value="outofstock">Out of Stock</option>
+                        </select>
                     </div>
                     <div id="products-grid" class="products-grid">
-                        <!-- Products will be populated by JavaScript -->
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading products...</p>
+                        </div>
                     </div>
                 </div>
 
                 <div id="tab-orders" class="tab-content">
-                    <h2>Orders</h2>
-                    <div class="orders-list">
-                        <!-- Orders will be populated by JavaScript -->
+                    <div class="section-header">
+                        <div>
+                            <h2><i class="fas fa-shopping-bag"></i> Order Management</h2>
+                            <p class="section-subtitle">Track and manage your orders</p>
+                        </div>
+                        <div class="order-filters">
+                            <select class="filter-select" id="order-status-filter">
+                                <option value="">All Orders</option>
+                                <option value="pending">Pending</option>
+                                <option value="processing">Processing</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="orders-list" id="all-orders">
+                        <div class="loading-spinner">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <p>Loading orders...</p>
+                        </div>
                     </div>
                 </div>
 
                 <div id="tab-profile" class="tab-content">
                     <div class="card">
                         <div class="card-header">
-                            <h3>Supplier Profile</h3>
+                            <h3><i class="fas fa-user-cog"></i> Supplier Profile</h3>
                             <p>Manage your business information</p>
                         </div>
                         <div class="card-content">
-                            <form class="profile-form">
+                            <form class="profile-form" onsubmit="updateProfile(event)">
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label>Business Name</label>
-                                        <input type="text" value="Fresh Farm Supplies">
+                                        <label><i class="fas fa-store"></i> Business Name</label>
+                                        <input type="text" id="profile-business-name" placeholder="Enter business name">
                                     </div>
                                     <div class="form-group">
-                                        <label>Contact Person</label>
-                                        <input type="text" value="Ramesh Kumar">
+                                        <label><i class="fas fa-user"></i> Contact Person</label>
+                                        <input type="text" id="profile-contact-person" placeholder="Enter contact person name">
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>Business Address</label>
-                                    <textarea>Shop 45, Mumbai Central Market, Mumbai - 400001</textarea>
+                                    <label><i class="fas fa-address-card"></i> Business Address</label>
+                                    <textarea id="profile-business-address" placeholder="Enter complete business address"></textarea>
                                 </div>
                                 <div class="form-row">
                                     <div class="form-group">
-                                        <label>Phone Number</label>
-                                        <input type="tel" value="+91 98765 43210">
+                                        <label><i class="fas fa-phone"></i> Phone Number</label>
+                                        <input type="tel" id="profile-phone" placeholder="Enter phone number">
                                     </div>
                                     <div class="form-group">
-                                        <label>Email</label>
-                                        <input type="email" value="ramesh@freshfarm.com">
+                                        <label><i class="fas fa-envelope"></i> Email</label>
+                                        <input type="email" id="profile-email" placeholder="Enter email address">
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label>Business Hours</label>
-                                    <input type="text" value="6:00 AM - 8:00 PM">
+                                    <label><i class="fas fa-clock"></i> Business Hours</label>
+                                    <input type="text" id="profile-business-hours" placeholder="e.g., 9:00 AM - 6:00 PM">
                                 </div>
-                                <button type="submit" class="btn btn-primary">Update Profile</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Update Profile
+                                </button>
                             </form>
                         </div>
                     </div>
@@ -246,12 +467,15 @@
     <div id="cart-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Your Cart</h3>
+                <h3><i class="fas fa-shopping-cart"></i> Your Cart</h3>
                 <button class="modal-close" onclick="closeCart()">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="cart-items">
-                    <!-- Cart items will be populated by JavaScript -->
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading cart...</p>
+                    </div>
                 </div>
                 <div id="cart-total" class="cart-total">
                     <!-- Total will be populated by JavaScript -->
@@ -264,44 +488,82 @@
     <div id="add-product-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Add New Product</h3>
+                <h3><i class="fas fa-plus-circle"></i> Add New Product</h3>
                 <button class="modal-close" onclick="closeAddProductModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="add-product-form" class="product-form">
+                <form id="add-product-form" class="product-form" onsubmit="handleAddProduct(event)">
                     <div class="form-group">
-                        <label>Product Name</label>
-                        <input type="text" id="product-name" required>
+                        <label><i class="fas fa-tag"></i> Product Name</label>
+                        <input type="text" id="product-name" placeholder="Enter product name" required>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Price per unit</label>
-                            <input type="number" id="product-price" required>
+                            <label><i class="fas fa-rupee-sign"></i> Price per unit</label>
+                            <input type="number" id="product-price" placeholder="Enter price" step="0.01" min="0" required>
                         </div>
                         <div class="form-group">
-                            <label>Unit</label>
+                            <label><i class="fas fa-weight"></i> Unit</label>
                             <select id="product-unit" required>
                                 <option value="">Select unit</option>
-                                <option value="kg">Kilogram</option>
-                                <option value="gram">Gram</option>
+                                <option value="kg">Kilogram (kg)</option>
+                                <option value="gram">Gram (g)</option>
                                 <option value="piece">Piece</option>
-                                <option value="liter">Liter</option>
+                                <option value="liter">Liter (L)</option>
+                                <option value="dozen">Dozen</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-sort-numeric-up"></i> Minimum Order Quantity</label>
+                            <input type="number" id="product-min-order" placeholder="Min quantity" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-list"></i> Category</label>
+                            <select id="product-category">
+                                <option value="other">Other</option>
+                                <option value="vegetables">Vegetables</option>
+                                <option value="spices">Spices</option>
+                                <option value="seafood">Seafood</option>
+                                <option value="grains">Grains</option>
+                                <option value="dairy">Dairy</option>
+                                <option value="meat">Meat</option>
                             </select>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Minimum Order Quantity</label>
-                        <input type="number" id="product-min-order" required>
+                        <label><i class="fas fa-warehouse"></i> Stock Quantity</label>
+                        <input type="number" id="product-stock" placeholder="Available stock" min="0" value="100">
                     </div>
                     <div class="form-group">
-                        <label>Description</label>
-                        <textarea id="product-description"></textarea>
+                        <label><i class="fas fa-image"></i> Product Emoji/Icon</label>
+                        <input type="text" id="product-image" placeholder="🍅 (optional)" maxlength="2">
                     </div>
-                    <button type="submit" class="btn btn-primary">Add Product</button>
+                    <div class="form-group">
+                        <label><i class="fas fa-align-left"></i> Description</label>
+                        <textarea id="product-description" placeholder="Enter product description (optional)"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
                 </form>
+                <div id="add-product-error" class="error-message" style="display: none;"></div>
+                <div id="add-product-success" class="success-message" style="display: none;"></div>
             </div>
         </div>
     </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <i class="fas fa-spinner fa-spin fa-3x"></i>
+            <p>Loading...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
 
     <script src="script.js"></script>
 </body>
