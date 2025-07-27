@@ -221,6 +221,7 @@
                 <div id="dish-ingredients-list" class="ingredients-results"></div>
             </div>
 
+            <!-- Enhanced Search Section -->
             <div class="search-section">
                 <div class="section-header-with-icon">
                     <h2><i class="fas fa-store"></i> Browse Suppliers</h2>
@@ -247,10 +248,34 @@
                         <option value="bangalore">Bangalore</option>
                         <option value="chennai">Chennai</option>
                         <option value="kolkata">Kolkata</option>
+                        <option value="hyderabad">Hyderabad</option>
+                        <option value="pune">Pune</option>
+                    </select>
+                    <select class="filter-select" id="price-filter">
+                        <option value="">All Prices</option>
+                        <option value="0-50">₹0 - ₹50</option>
+                        <option value="50-100">₹50 - ₹100</option>
+                        <option value="100-200">₹100 - ₹200</option>
+                        <option value="200-500">₹200 - ₹500</option>
+                        <option value="500+">₹500+</option>
+                    </select>
+                    <select class="filter-select" id="rating-filter">
+                        <option value="">All Ratings</option>
+                        <option value="4.5+">4.5+ Stars</option>
+                        <option value="4.0+">4.0+ Stars</option>
+                        <option value="3.5+">3.5+ Stars</option>
+                        <option value="3.0+">3.0+ Stars</option>
                     </select>
                     <button class="btn btn-outline filter-btn" onclick="applyFilters()">
                         <i class="fas fa-filter"></i> Apply Filters
                     </button>
+                    <button class="btn btn-ghost filter-btn" onclick="clearFilters()">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+                <div class="active-filters" id="active-filters" style="display: none;">
+                    <span class="filter-label">Active Filters:</span>
+                    <div id="filter-tags"></div>
                 </div>
             </div>
 

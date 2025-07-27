@@ -283,15 +283,24 @@ app.post('/api/auth/login', async (req, res) => {
 // Product Routes
 app.get('/api/products', async (req, res) => {
   try {
-    const { search, category, location } = req.query;
+    const { search, category, location, minPrice, maxPrice, minRating } = req.query;
     let query = {};
 
+    // Text search
     if (search) {
       query.name = { $regex: search, $options: 'i' };
     }
 
+    // Category filter
     if (category) {
       query.category = category;
+    }
+
+    // Price filtering
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) query.price.$gte = parseFloat(minPrice);
+      if (maxPrice) query.price.$lte = parseFloat(maxPrice);
     }
 
     const products = await Product.find(query)
@@ -300,10 +309,18 @@ app.get('/api/products', async (req, res) => {
 
     let filteredProducts = products;
 
+    // Location filtering
     if (location) {
       filteredProducts = products.filter(product => 
         product.supplier.location && 
         product.supplier.location.toLowerCase().includes(location.toLowerCase())
+      );
+    }
+
+    // Rating filtering
+    if (minRating) {
+      filteredProducts = filteredProducts.filter(product => 
+        product.supplier.rating >= parseFloat(minRating)
       );
     }
 

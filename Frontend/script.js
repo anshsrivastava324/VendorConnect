@@ -471,11 +471,20 @@ async function searchDishIngredients() {
   }
 }
 
-// Product functions
+// Enhanced product fetching with better error handling
 const fetchProducts = async (filters = {}) => {
   try {
-    const queryParams = new URLSearchParams(filters).toString();
-    const data = await apiCall(`/products?${queryParams}`);
+    const queryParams = new URLSearchParams();
+    
+    // Only add non-empty filters to query params
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value.trim() !== '' && key !== 'price' && key !== 'rating') {
+        queryParams.append(key, value);
+      }
+    });
+    
+    const url = `/products${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const data = await apiCall(url);
     return data;
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -495,26 +504,196 @@ const addProduct = async (productData) => {
   }
 };
 
-// Filter functionality
+// Enhanced Filter functionality
 function applyFilters() {
-  const productSearch = document.getElementById('product-search').value.toLowerCase();
+  const productSearch = document.getElementById('product-search').value.trim();
   const categoryFilter = document.getElementById('category-filter').value;
   const locationFilter = document.getElementById('location-filter').value;
+  const priceFilter = document.getElementById('price-filter').value;
+  const ratingFilter = document.getElementById('rating-filter').value;
   
+  console.log('Applying filters:', { productSearch, categoryFilter, locationFilter, priceFilter, ratingFilter });
+  
+  // Show loading
   document.getElementById('suppliers-loading').style.display = 'block';
   
   const filters = {};
   if (productSearch) filters.search = productSearch;
   if (categoryFilter) filters.category = categoryFilter;
   if (locationFilter) filters.location = locationFilter;
+  if (priceFilter) filters.price = priceFilter;
+  if (ratingFilter) filters.rating = ratingFilter;
+  
+  // Display active filters
+  displayActiveFilters(filters);
   
   fetchProducts(filters).then(products => {
-    renderSuppliers(products);
+    const filteredProducts = applyClientSideFilters(products, { priceFilter, ratingFilter });
+    renderSuppliers(filteredProducts);
     document.getElementById('suppliers-loading').style.display = 'none';
+    
+    // Show results count
+    showResultsCount(filteredProducts.length);
   }).catch(error => {
     console.error('Error applying filters:', error);
     document.getElementById('suppliers-loading').style.display = 'none';
     showToast('Error loading products', 'error');
+  });
+}
+
+// Client-side filtering for price and rating
+function applyClientSideFilters(products, { priceFilter, ratingFilter }) {
+  let filteredProducts = [...products];
+  
+  // Apply price filter
+  if (priceFilter) {
+    filteredProducts = filteredProducts.filter(product => {
+      const price = product.price;
+      switch (priceFilter) {
+        case '0-50':
+          return price >= 0 && price <= 50;
+        case '50-100':
+          return price > 50 && price <= 100;
+        case '100-200':
+          return price > 100 && price <= 200;
+        case '200-500':
+          return price > 200 && price <= 500;
+        case '500+':
+          return price > 500;
+        default:
+          return true;
+      }
+    });
+  }
+  
+  // Apply rating filter
+  if (ratingFilter) {
+    filteredProducts = filteredProducts.filter(product => {
+      const rating = product.supplier.rating;
+      switch (ratingFilter) {
+        case '4.5+':
+          return rating >= 4.5;
+        case '4.0+':
+          return rating >= 4.0;
+        case '3.5+':
+          return rating >= 3.5;
+        case '3.0+':
+          return rating >= 3.0;
+        default:
+          return true;
+      }
+    });
+  }
+  
+  return filteredProducts;
+}
+
+// Display active filters
+function displayActiveFilters(filters) {
+  const activeFiltersContainer = document.getElementById('active-filters');
+  const filterTagsContainer = document.getElementById('filter-tags');
+  
+  const filterLabels = {
+    search: 'Search',
+    category: 'Category',
+    location: 'Location',
+    price: 'Price',
+    rating: 'Rating'
+  };
+  
+  const activeFilterCount = Object.keys(filters).length;
+  
+  if (activeFilterCount === 0) {
+    activeFiltersContainer.style.display = 'none';
+    return;
+  }
+  
+  activeFiltersContainer.style.display = 'flex';
+  
+  filterTagsContainer.innerHTML = Object.entries(filters).map(([key, value]) => {
+    const label = filterLabels[key] || key;
+    const displayValue = key === 'price' ? `₹${value.replace('-', ' - ₹')}` : 
+                        key === 'rating' ? `${value} stars` : value;
+    
+    return `
+      <span class="filter-tag">
+        ${label}: ${displayValue}
+        <button onclick="removeFilter('${key}')" title="Remove filter">×</button>
+      </span>
+    `;
+  }).join('');
+}
+
+// Remove individual filter
+function removeFilter(filterKey) {
+  const filterElement = document.getElementById(`${filterKey}-filter`);
+  if (filterElement) {
+    filterElement.value = '';
+  } else if (filterKey === 'search') {
+    document.getElementById('product-search').value = '';
+  }
+  
+  applyFilters();
+}
+
+// Clear all filters
+function clearFilters() {
+  document.getElementById('product-search').value = '';
+  document.getElementById('category-filter').value = '';
+  document.getElementById('location-filter').value = '';
+  document.getElementById('price-filter').value = '';
+  document.getElementById('rating-filter').value = '';
+  
+  document.getElementById('active-filters').style.display = 'none';
+  
+  // Load all products
+  fetchProducts({}).then(products => {
+    renderSuppliers(products);
+    showResultsCount(products.length);
+    showToast('Filters cleared', 'info');
+  }).catch(error => {
+    console.error('Error clearing filters:', error);
+    showToast('Error loading products', 'error');
+  });
+}
+
+// Show results count
+function showResultsCount(count) {
+  // Remove existing results count
+  const existingCount = document.querySelector('.filter-results-count');
+  if (existingCount) {
+    existingCount.remove();
+  }
+  
+  // Add new results count
+  const resultsCount = document.createElement('div');
+  resultsCount.className = 'filter-results-count';
+  resultsCount.textContent = `Showing ${count} supplier${count !== 1 ? 's' : ''}`;
+  
+  const suppliersContainer = document.getElementById('suppliers-list');
+  suppliersContainer.parentNode.insertBefore(resultsCount, suppliersContainer);
+}
+
+// Auto-apply filters when typing (debounced)
+let filterTimeout;
+function setupAutoFilter() {
+  const searchInput = document.getElementById('product-search');
+  
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(filterTimeout);
+      filterTimeout = setTimeout(() => {
+        applyFilters();
+      }, 500); // Apply filters 500ms after user stops typing
+    });
+  }
+  
+  // Apply filters immediately when dropdowns change
+  ['category-filter', 'location-filter', 'price-filter', 'rating-filter'].forEach(filterId => {
+    const element = document.getElementById(filterId);
+    if (element) {
+      element.addEventListener('change', applyFilters);
+    }
   });
 }
 
@@ -1112,6 +1291,9 @@ document.addEventListener("click", (e) => {
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
   console.log('Application starting with MongoDB backend...');
+  
+  // Setup auto-filtering
+  setupAutoFilter();
   
   if (authToken && currentUser) {
     console.log('User found in localStorage:', currentUser);
