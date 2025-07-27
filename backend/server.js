@@ -10,23 +10,52 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://localhost:8000'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:5500', 'http://localhost:8000', 'http://localhost:5173'],
   credentials: true
 }));
 app.use(express.json());
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/vendorconnect', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+// MongoDB Connection Function
+const connectDB = async () => {
+  try {
+    console.log('🔄 Attempting to connect to MongoDB Atlas...');
+    
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      bufferCommands: false,
+      maxPoolSize: 10
+    });
 
+    console.log(`✅ MongoDB Connected Successfully!`);
+    console.log(`📍 Database: ${conn.connection.name}`);
+    console.log(`🌐 Host: ${conn.connection.host}`);
+  } catch (error) {
+    console.error('❌ MongoDB connection failed:', error.message);
+    console.error('💡 Please check:');
+    console.error('   1. Your MongoDB Atlas connection string');
+    console.error('   2. Network access settings (IP whitelist)');
+    console.error('   3. Database user credentials');
+    process.exit(1);
+  }
+};
+
+// Connect to MongoDB
+connectDB();
+
+// Connection event listeners
 mongoose.connection.on('connected', () => {
-  console.log('Connected to MongoDB');
+  console.log('📡 Mongoose connected to MongoDB Atlas');
 });
 
 mongoose.connection.on('error', (err) => {
-  console.log('MongoDB connection error:', err);
+  console.error('❌ Mongoose connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('📡 Mongoose disconnected');
 });
 
 // Schemas
@@ -41,7 +70,8 @@ const userSchema = new mongoose.Schema({
   businessAddress: String,
   businessHours: { type: String, default: '9:00 AM - 6:00 PM' },
   verified: { type: Boolean, default: true },
-  rating: { type: Number, default: 4.5 }
+  rating: { type: Number, default: 4.5 },
+  isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
 const productSchema = new mongoose.Schema({
@@ -92,12 +122,19 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
+    return res.status(401).json({ 
+      success: false,
+      message: 'Access token required' 
+    });
   }
 
   jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
     if (err) {
-      return res.status(403).json({ message: 'Invalid or expired token' });
+      console.log('Token verification error:', err);
+      return res.status(403).json({ 
+        success: false,
+        message: 'Invalid or expired token' 
+      });
     }
     req.user = user;
     next();
@@ -111,10 +148,21 @@ app.post('/api/auth/register', async (req, res) => {
 
     console.log('Registration attempt:', { email, userType, name });
 
+    // Validation
+    if (!name || !email || !password || !userType) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Name, email, password, and user type are required' 
+      });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists with this email' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'User already exists with this email' 
+      });
     }
 
     // Hash password
@@ -148,6 +196,7 @@ app.post('/api/auth/register', async (req, res) => {
     );
 
     res.status(201).json({
+      success: true,
       message: 'User registered successfully',
       token,
       user: {
@@ -165,7 +214,10 @@ app.post('/api/auth/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during registration' 
+    });
   }
 });
 
@@ -178,13 +230,19 @@ app.post('/api/auth/login', async (req, res) => {
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid email or password' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid email or password' 
+      });
     }
 
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(400).json({ message: 'Invalid email or password' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid email or password' 
+      });
     }
 
     console.log('Login successful for user:', user._id);
@@ -197,6 +255,7 @@ app.post('/api/auth/login', async (req, res) => {
     );
 
     res.json({
+      success: true,
       message: 'Login successful',
       token,
       user: {
@@ -214,7 +273,10 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during login' 
+    });
   }
 });
 
@@ -248,14 +310,20 @@ app.get('/api/products', async (req, res) => {
     res.json(filteredProducts);
   } catch (error) {
     console.error('Error fetching products:', error);
-    res.status(500).json({ message: 'Server error fetching products' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error fetching products' 
+    });
   }
 });
 
 app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'supplier') {
-      return res.status(403).json({ message: 'Only suppliers can add products' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only suppliers can add products' 
+      });
     }
 
     console.log('Adding product for supplier:', req.user.userId);
@@ -275,17 +343,27 @@ app.post('/api/products', authenticateToken, async (req, res) => {
 
     console.log('Product added successfully:', product._id);
 
-    res.status(201).json(populatedProduct);
+    res.status(201).json({
+      success: true,
+      message: 'Product added successfully',
+      product: populatedProduct
+    });
   } catch (error) {
     console.error('Error adding product:', error);
-    res.status(500).json({ message: 'Server error adding product' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error adding product' 
+    });
   }
 });
 
 app.get('/api/products/my-products', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'supplier') {
-      return res.status(403).json({ message: 'Only suppliers can view their products' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only suppliers can view their products' 
+      });
     }
 
     const products = await Product.find({ supplier: req.user.userId })
@@ -297,7 +375,10 @@ app.get('/api/products/my-products', authenticateToken, async (req, res) => {
     res.json(products);
   } catch (error) {
     console.error('Error fetching supplier products:', error);
-    res.status(500).json({ message: 'Server error fetching products' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error fetching products' 
+    });
   }
 });
 
@@ -306,19 +387,32 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
     const product = await Product.findById(req.params.id);
     
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
     }
 
     if (product.supplier.toString() !== req.user.userId) {
-      return res.status(403).json({ message: 'Not authorized to delete this product' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Not authorized to delete this product' 
+      });
     }
 
     await Product.findByIdAndDelete(req.params.id);
     console.log('Product deleted:', req.params.id);
-    res.json({ message: 'Product deleted successfully' });
+    
+    res.json({ 
+      success: true,
+      message: 'Product deleted successfully' 
+    });
   } catch (error) {
     console.error('Error deleting product:', error);
-    res.status(500).json({ message: 'Server error deleting product' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error deleting product' 
+    });
   }
 });
 
@@ -326,7 +420,10 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
 app.get('/api/cart', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'vendor') {
-      return res.status(403).json({ message: 'Only vendors can access cart' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only vendors can access cart' 
+      });
     }
 
     let cart = await Cart.findOne({ vendor: req.user.userId })
@@ -349,14 +446,20 @@ app.get('/api/cart', authenticateToken, async (req, res) => {
     res.json(cart);
   } catch (error) {
     console.error('Error fetching cart:', error);
-    res.status(500).json({ message: 'Server error fetching cart' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error fetching cart' 
+    });
   }
 });
 
 app.post('/api/cart/add', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'vendor') {
-      return res.status(403).json({ message: 'Only vendors can add to cart' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only vendors can add to cart' 
+      });
     }
 
     const { productId, quantity = 1 } = req.body;
@@ -366,11 +469,17 @@ app.post('/api/cart/add', authenticateToken, async (req, res) => {
     // Find the product
     const product = await Product.findById(productId);
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
     }
 
     if (!product.inStock || product.stockQuantity < quantity) {
-      return res.status(400).json({ message: 'Product not available in requested quantity' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Product not available in requested quantity' 
+      });
     }
 
     // Find or create cart
@@ -421,22 +530,35 @@ app.post('/api/cart/add', authenticateToken, async (req, res) => {
 
     console.log('Cart updated successfully');
 
-    res.json({ message: 'Item added to cart successfully', cart });
+    res.json({ 
+      success: true,
+      message: 'Item added to cart successfully', 
+      cart 
+    });
   } catch (error) {
     console.error('Error adding to cart:', error);
-    res.status(500).json({ message: 'Server error adding to cart' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error adding to cart' 
+    });
   }
 });
 
 app.delete('/api/cart/remove/:itemId', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'vendor') {
-      return res.status(403).json({ message: 'Only vendors can modify cart' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only vendors can modify cart' 
+      });
     }
 
     const cart = await Cart.findOne({ vendor: req.user.userId });
     if (!cart) {
-      return res.status(404).json({ message: 'Cart not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Cart not found' 
+      });
     }
 
     console.log(`Removing item ${req.params.itemId} from cart`);
@@ -458,17 +580,27 @@ app.delete('/api/cart/remove/:itemId', authenticateToken, async (req, res) => {
 
     console.log('Item removed from cart successfully');
 
-    res.json({ message: 'Item removed from cart successfully', cart });
+    res.json({ 
+      success: true,
+      message: 'Item removed from cart successfully', 
+      cart 
+    });
   } catch (error) {
     console.error('Error removing from cart:', error);
-    res.status(500).json({ message: 'Server error removing from cart' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error removing from cart' 
+    });
   }
 });
 
 app.post('/api/cart/checkout', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'vendor') {
-      return res.status(403).json({ message: 'Only vendors can checkout' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only vendors can checkout' 
+      });
     }
 
     const cart = await Cart.findOne({ vendor: req.user.userId })
@@ -476,7 +608,10 @@ app.post('/api/cart/checkout', authenticateToken, async (req, res) => {
       .exec();
 
     if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ message: 'Cart is empty' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Cart is empty' 
+      });
     }
 
     console.log(`Processing checkout for vendor ${req.user.userId}`);
@@ -523,6 +658,7 @@ app.post('/api/cart/checkout', authenticateToken, async (req, res) => {
     console.log(`Checkout completed: ${orders.length} orders created`);
 
     res.json({
+      success: true,
       message: 'Orders placed successfully',
       orders: orders.map(order => ({
         orderId: order._id,
@@ -533,7 +669,10 @@ app.post('/api/cart/checkout', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error during checkout:', error);
-    res.status(500).json({ message: 'Server error during checkout' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during checkout' 
+    });
   }
 });
 
@@ -541,7 +680,10 @@ app.post('/api/cart/checkout', authenticateToken, async (req, res) => {
 app.get('/api/orders/vendor', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'vendor') {
-      return res.status(403).json({ message: 'Only vendors can view their orders' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only vendors can view their orders' 
+      });
     }
 
     const orders = await Order.find({ vendor: req.user.userId })
@@ -553,14 +695,20 @@ app.get('/api/orders/vendor', authenticateToken, async (req, res) => {
     res.json(orders);
   } catch (error) {
     console.error('Error fetching vendor orders:', error);
-    res.status(500).json({ message: 'Server error fetching orders' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error fetching orders' 
+    });
   }
 });
 
 app.get('/api/orders/supplier', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'supplier') {
-      return res.status(403).json({ message: 'Only suppliers can view their orders' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only suppliers can view their orders' 
+      });
     }
 
     const orders = await Order.find({ supplier: req.user.userId })
@@ -572,7 +720,10 @@ app.get('/api/orders/supplier', authenticateToken, async (req, res) => {
     res.json(orders);
   } catch (error) {
     console.error('Error fetching supplier orders:', error);
-    res.status(500).json({ message: 'Server error fetching orders' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error fetching orders' 
+    });
   }
 });
 
@@ -581,13 +732,19 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
     }
 
     res.json(user);
   } catch (error) {
     console.error('Error fetching profile:', error);
-    res.status(500).json({ message: 'Server error fetching profile' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error fetching profile' 
+    });
   }
 });
 
@@ -603,18 +760,25 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
     ).select('-password');
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
     }
 
     console.log('Profile updated for user:', req.user.userId);
 
     res.json({
+      success: true,
       message: 'Profile updated successfully',
       user
     });
   } catch (error) {
     console.error('Error updating profile:', error);
-    res.status(500).json({ message: 'Server error updating profile' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error updating profile' 
+    });
   }
 });
 
@@ -622,7 +786,10 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
 app.delete('/api/cart/clear', authenticateToken, async (req, res) => {
   try {
     if (req.user.userType !== 'vendor') {
-      return res.status(403).json({ message: 'Only vendors can clear cart' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only vendors can clear cart' 
+      });
     }
 
     const cart = await Cart.findOne({ vendor: req.user.userId });
@@ -632,20 +799,77 @@ app.delete('/api/cart/clear', authenticateToken, async (req, res) => {
       await cart.save();
     }
 
-    res.json({ message: 'Cart cleared successfully' });
+    res.json({ 
+      success: true,
+      message: 'Cart cleared successfully' 
+    });
   } catch (error) {
     console.error('Error clearing cart:', error);
-    res.status(500).json({ message: 'Server error clearing cart' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error clearing cart' 
+    });
   }
 });
 
 // Health check route
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
+  res.json({ 
+    success: true,
+    status: 'OK', 
+    message: 'VendorConnect API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Welcome to VendorConnect API',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/auth',
+      products: '/api/products',
+      cart: '/api/cart',
+      orders: '/api/orders',
+      profile: '/api/profile',
+      health: '/api/health'
+    }
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server Error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`
+  });
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n🔄 Shutting down server...');
+  await mongoose.connection.close();
+  console.log('📡 MongoDB connection closed');
+  process.exit(0);
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`MongoDB URI: ${process.env.MONGODB_URI || 'mongodb://localhost:27017/vendorconnect'}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 API URL: http://localhost:${PORT}`);
+  console.log(`💡 Health check: http://localhost:${PORT}/api/health`);
 });
+
+module.exports = app;
