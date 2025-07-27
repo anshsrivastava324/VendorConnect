@@ -399,6 +399,56 @@ app.get('/api/products/my-products', authenticateToken, async (req, res) => {
   }
 });
 
+// Update product route (ENHANCED - FOR EDIT FUNCTIONALITY)
+app.put('/api/products/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.userType !== 'supplier') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only suppliers can update products' 
+      });
+    }
+
+    const product = await Product.findOne({ 
+      _id: req.params.id, 
+      supplier: req.user.userId 
+    });
+
+    if (!product) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found or you are not authorized to edit it' 
+      });
+    }
+
+    // Update product with new data
+    const updateData = {
+      ...req.body,
+      inStock: req.body.stockQuantity > 0
+    };
+
+    const updatedProduct = await Product.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('supplier', 'name businessName location rating verified');
+
+    console.log('Product updated successfully:', req.params.id);
+
+    res.json({
+      success: true,
+      message: 'Product updated successfully',
+      product: updatedProduct
+    });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error updating product' 
+    });
+  }
+});
+
 app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);

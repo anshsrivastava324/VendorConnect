@@ -4,6 +4,7 @@ let cart = [];
 let currentTab = "dashboard";
 let currentUser = null;
 let authToken = null;
+let allSupplierProducts = []; // Store all products for filtering
 
 // API Configuration
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -1002,6 +1003,7 @@ async function loadSupplierStats() {
   }
 }
 
+// Enhanced renderSupplierProducts function
 async function renderSupplierProducts() {
   const container = document.getElementById("products-grid");
   if (!container) return;
@@ -1010,39 +1012,222 @@ async function renderSupplierProducts() {
     container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Loading products...</p></div>';
     
     const products = await apiCall('/products/my-products');
+    allSupplierProducts = products; // Store for filtering
     
-    if (products.length === 0) {
-      container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>No products added yet</p><button class="btn btn-primary" onclick="openAddProductModal()" style="margin-top:1rem;"><i class="fas fa-plus"></i> Add Your First Product</button></div>';
-      return;
-    }
-
-    container.innerHTML = products
-      .map(
-        (product) => `
-        <div class="product-card">
-          <div class="product-image">${product.image}</div>
-          <h4>${product.name}</h4>
-          <div class="product-details">
-            <p>Price: ₹${product.price}/${product.unit}</p>
-            <p>Min order: ${product.minOrder} ${product.unit}</p>
-            <p>Stock: ${product.stockQuantity}</p>
-            <p>Status: ${product.inStock ? '<span style="color: #10b981;">In Stock</span>' : '<span style="color: #ef4444;">Out of Stock</span>'}</p>
-          </div>
-          <div style="display: flex; gap: 0.5rem;">
-            <button class="btn btn-outline" style="flex: 1;" onclick="editProduct('${product._id}')">
-              <i class="fas fa-edit"></i> Edit
-            </button>
-            <button class="btn btn-outline" style="flex: 1;" onclick="deleteProduct('${product._id}')">
-              <i class="fas fa-trash"></i> Delete
-            </button>
-          </div>
-        </div>
-      `,
-      )
-      .join("");
+    displaySupplierProducts(products);
   } catch (error) {
     console.error('Error loading products:', error);
     container.innerHTML = '<div class="error-state">Error loading products. Please check your connection.</div>';
+  }
+}
+
+// Display products function
+function displaySupplierProducts(products) {
+  const container = document.getElementById("products-grid");
+  
+  if (products.length === 0) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>No products found</p><button class="btn btn-primary" onclick="openAddProductModal()" style="margin-top:1rem;"><i class="fas fa-plus"></i> Add Your First Product</button></div>';
+    return;
+  }
+
+  container.innerHTML = products
+    .map(
+      (product) => `
+      <div class="product-card">
+        <div class="product-image">${product.image}</div>
+        <h4>${product.name}</h4>
+        <div class="product-details">
+          <p>Price: ₹${product.price}/${product.unit}</p>
+          <p>Min order: ${product.minOrder} ${product.unit}</p>
+          <p>Stock: ${product.stockQuantity}</p>
+          <p>Category: ${product.category}</p>
+          <p>Status: ${product.inStock ? '<span style="color: #10b981;">In Stock</span>' : '<span style="color: #ef4444;">Out of Stock</span>'}</p>
+          ${product.description ? `<p class="product-desc">${product.description}</p>` : ''}
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" style="flex: 1;" onclick="editProduct('${product._id}')">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+          <button class="btn btn-outline" style="flex: 1;" onclick="deleteProduct('${product._id}')">
+            <i class="fas fa-trash"></i> Delete
+          </button>
+        </div>
+      </div>
+    `,
+    )
+    .join("");
+}
+
+// Search products function
+function searchMyProducts() {
+  const searchTerm = document.getElementById('product-filter').value.toLowerCase();
+  const stockFilter = document.getElementById('stock-filter').value;
+  
+  let filteredProducts = [...allSupplierProducts];
+  
+  // Apply search filter
+  if (searchTerm) {
+    filteredProducts = filteredProducts.filter(product => 
+      product.name.toLowerCase().includes(searchTerm) ||
+      product.category.toLowerCase().includes(searchTerm) ||
+      (product.description && product.description.toLowerCase().includes(searchTerm))
+    );
+  }
+  
+  // Apply stock filter
+  if (stockFilter === 'instock') {
+    filteredProducts = filteredProducts.filter(product => product.inStock);
+  } else if (stockFilter === 'outofstock') {
+    filteredProducts = filteredProducts.filter(product => !product.inStock);
+  }
+  
+  displaySupplierProducts(filteredProducts);
+  
+  // Show results count
+  showProductSearchResults(filteredProducts.length, allSupplierProducts.length);
+}
+
+// Clear product search
+function clearProductSearch() {
+  document.getElementById('product-filter').value = '';
+  document.getElementById('stock-filter').value = '';
+  displaySupplierProducts(allSupplierProducts);
+  hideProductSearchResults();
+  showToast('Search cleared', 'info');
+}
+
+// Show search results count
+function showProductSearchResults(filteredCount, totalCount) {
+  // Remove existing results
+  const existingResults = document.querySelector('.product-search-results');
+  if (existingResults) {
+    existingResults.remove();
+  }
+  
+  const resultsDiv = document.createElement('div');
+  resultsDiv.className = 'product-search-results filter-results-count';
+  resultsDiv.textContent = `Showing ${filteredCount} of ${totalCount} products`;
+  
+  const productsGrid = document.getElementById('products-grid');
+  productsGrid.parentNode.insertBefore(resultsDiv, productsGrid);
+}
+
+// Hide search results count
+function hideProductSearchResults() {
+  const existingResults = document.querySelector('.product-search-results');
+  if (existingResults) {
+    existingResults.remove();
+  }
+}
+
+// Edit product function (FIXED)
+async function editProduct(productId) {
+  try {
+    console.log('Editing product:', productId);
+    
+    // Find the product in our stored array
+    const product = allSupplierProducts.find(p => p._id === productId);
+    
+    if (!product) {
+      showToast('Product not found', 'error');
+      return;
+    }
+    
+    // Populate the edit form
+    document.getElementById('edit-product-id').value = product._id;
+    document.getElementById('edit-product-name').value = product.name;
+    document.getElementById('edit-product-price').value = product.price;
+    document.getElementById('edit-product-unit').value = product.unit;
+    document.getElementById('edit-product-min-order').value = product.minOrder;
+    document.getElementById('edit-product-category').value = product.category;
+    document.getElementById('edit-product-stock').value = product.stockQuantity;
+    document.getElementById('edit-product-image').value = product.image;
+    document.getElementById('edit-product-description').value = product.description || '';
+    
+    // Open the modal
+    openEditProductModal();
+    
+  } catch (error) {
+    console.error('Error preparing edit:', error);
+    showToast('Error loading product for editing', 'error');
+  }
+}
+
+// Modal functions for edit
+function openEditProductModal() {
+  document.getElementById("edit-product-modal").classList.add("active");
+}
+
+function closeEditProductModal() {
+  document.getElementById("edit-product-modal").classList.remove("active");
+  document.getElementById("edit-product-form").reset();
+  document.getElementById('edit-product-error').style.display = 'none';
+  document.getElementById('edit-product-success').style.display = 'none';
+}
+
+// Handle edit product submission
+async function handleEditProduct(event) {
+  event.preventDefault();
+
+  const productId = document.getElementById('edit-product-id').value;
+  const productData = {
+    name: document.getElementById("edit-product-name").value,
+    price: parseFloat(document.getElementById("edit-product-price").value),
+    unit: document.getElementById("edit-product-unit").value,
+    minOrder: parseInt(document.getElementById("edit-product-min-order").value),
+    category: document.getElementById("edit-product-category").value,
+    stockQuantity: parseInt(document.getElementById("edit-product-stock").value),
+    image: document.getElementById("edit-product-image").value || '🍽️',
+    description: document.getElementById("edit-product-description").value,
+  };
+
+  const errorDiv = document.getElementById('edit-product-error');
+  const successDiv = document.getElementById('edit-product-success');
+
+  try {
+    console.log('Updating product:', productId, productData);
+    
+    const updatedProduct = await apiCall(`/products/${productId}`, {
+      method: 'PUT',
+      body: JSON.stringify(productData)
+    });
+    
+    successDiv.textContent = 'Product updated successfully!';
+    successDiv.style.display = 'block';
+    errorDiv.style.display = 'none';
+    
+    setTimeout(() => {
+      closeEditProductModal();
+      renderSupplierProducts(); // Refresh the products list
+      loadSupplierStats(); // Update stats
+      showToast('Product updated successfully!', 'success');
+    }, 1500);
+    
+  } catch (error) {
+    console.error('Error updating product:', error);
+    errorDiv.textContent = error.message;
+    errorDiv.style.display = 'block';
+    successDiv.style.display = 'none';
+  }
+}
+
+// Auto-search when typing (debounced)
+let productSearchTimeout;
+function setupProductAutoSearch() {
+  const searchInput = document.getElementById('product-filter');
+  const stockFilter = document.getElementById('stock-filter');
+  
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(productSearchTimeout);
+      productSearchTimeout = setTimeout(() => {
+        searchMyProducts();
+      }, 300);
+    });
+  }
+  
+  if (stockFilter) {
+    stockFilter.addEventListener('change', searchMyProducts);
   }
 }
 
@@ -1145,10 +1330,6 @@ async function handleAddProduct(event) {
     errorDiv.style.display = 'block';
     successDiv.style.display = 'none';
   }
-}
-
-function editProduct(productId) {
-  showToast('Edit functionality coming soon!', 'info');
 }
 
 async function deleteProduct(productId) {
@@ -1292,8 +1473,11 @@ document.addEventListener("click", (e) => {
 document.addEventListener("DOMContentLoaded", () => {
   console.log('Application starting with MongoDB backend...');
   
-  // Setup auto-filtering
+  // Setup auto-filtering for main vendor page
   setupAutoFilter();
+  
+  // Setup auto-search for supplier products
+  setupProductAutoSearch();
   
   if (authToken && currentUser) {
     console.log('User found in localStorage:', currentUser);
