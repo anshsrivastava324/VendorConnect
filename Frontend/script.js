@@ -391,6 +391,7 @@ function matchIngredientsToProducts(apiIngredients, allProducts) {
   );
 }
 
+// ENHANCED Dish search with available and unavailable ingredients
 async function searchDishIngredients() {
   const dishInput = document.getElementById("dish-input").value.trim();
   const ingredientsDiv = document.getElementById("dish-ingredients-list");
@@ -414,55 +415,153 @@ async function searchDishIngredients() {
     const allProducts = await fetchProducts();
     const matchedProducts = matchIngredientsToProducts(apiIngredients, allProducts);
 
-    if (matchedProducts.length === 0) {
-      ingredientsDiv.innerHTML = `
-        <div style='color:#888'>
-          <p>Found recipe for "${meal.strMeal}" but no matching ingredients available in our suppliers.</p>
-          <p><strong>Recipe ingredients:</strong> ${apiIngredients.map(ing => ing.name).join(', ')}</p>
-        </div>
-      `;
-      return;
-    }
+    // Create arrays for available and unavailable ingredients
+    const availableIngredients = [];
+    const unavailableIngredients = [];
 
-    ingredientsDiv.innerHTML = `
+    apiIngredients.forEach(apiIngredient => {
+      const matchedProduct = matchedProducts.find(product => 
+        product.originalIngredient === apiIngredient.name
+      );
+      
+      if (matchedProduct) {
+        availableIngredients.push({
+          ...apiIngredient,
+          product: matchedProduct
+        });
+      } else {
+        unavailableIngredients.push(apiIngredient);
+      }
+    });
+
+    // Build the HTML response
+    let ingredientsHTML = `
       <div style='margin-bottom:1rem;'>
         <h4 style='color:#f97316;margin-bottom:0.5rem;'>Recipe: ${meal.strMeal}</h4>
-        <p style='font-size:0.875rem;color:#666;margin-bottom:1rem;'>Found ${matchedProducts.length} matching ingredients from our suppliers:</p>
+        <p style='font-size:0.875rem;color:#666;margin-bottom:1rem;'>
+          Found ${availableIngredients.length} available and ${unavailableIngredients.length} unavailable ingredients from our suppliers:
+        </p>
       </div>
-      <form id="ingredient-checkbox-form" style="display:flex;flex-direction:column;gap:0.5rem;">
-        ${matchedProducts.map(prod => `
-          <label style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;border-radius:0.25rem;border:1px solid #e5e7eb;">
-            <input type="checkbox" value="${prod._id}" checked>
-            <span>
-              <strong>${prod.name}</strong> 
-              ${prod.measure ? `(${prod.measure})` : ''} 
-              from <span style="color:#f97316;font-weight:600">${prod.supplier.businessName}</span>
-              - ₹${prod.price}/${prod.unit}, min ${prod.minOrder}
-            </span>
-          </label>
-        `).join("")}
-        <button type="submit" class="btn btn-primary" style="margin-top:1rem;align-self:flex-start">Add Selected to Cart</button>
-      </form>
     `;
 
-    document.getElementById("ingredient-checkbox-form").onsubmit = async function(e){
-      e.preventDefault();
-      const chosen = Array.from(this.querySelectorAll('input[type=checkbox]:checked'));
-      if(chosen.length === 0) {
-        showToast("No ingredients selected.", 'warning');
-        return;
-      }
-      
-      try {
-        for (const inp of chosen) {
-          await addToCartAPI(inp.value);
+    // Available ingredients section
+    if (availableIngredients.length > 0) {
+      ingredientsHTML += `
+        <div style='margin-bottom:1.5rem;'>
+          <h5 style='color:#10b981;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;'>
+            <i class="fas fa-check-circle"></i> Available from Suppliers (${availableIngredients.length})
+          </h5>
+          <form id="ingredient-checkbox-form" style="display:flex;flex-direction:column;gap:0.5rem;">
+            ${availableIngredients.map(ingredient => `
+              <label style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;border-radius:0.25rem;border:1px solid #10b981;background:#f0fdf4;">
+                <input type="checkbox" value="${ingredient.product._id}" checked>
+                <span>
+                  <strong>${ingredient.name}</strong> 
+                  ${ingredient.measure ? `(${ingredient.measure})` : ''} 
+                  from <span style="color:#f97316;font-weight:600">${ingredient.product.supplier.businessName}</span>
+                  - ₹${ingredient.product.price}/${ingredient.product.unit}, min ${ingredient.product.minOrder}
+                </span>
+              </label>
+            `).join("")}
+            <button type="submit" class="btn btn-primary" style="margin-top:1rem;align-self:flex-start">
+              <i class="fas fa-cart-plus"></i> Add Selected to Cart
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    // Unavailable ingredients section
+    if (unavailableIngredients.length > 0) {
+      ingredientsHTML += `
+        <div style='margin-bottom:1rem;'>
+          <h5 style='color:#ef4444;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;'>
+            <i class="fas fa-exclamation-circle"></i> Not Available from Our Suppliers (${unavailableIngredients.length})
+          </h5>
+          <div style="display:flex;flex-direction:column;gap:0.5rem;">
+            ${unavailableIngredients.map(ingredient => `
+              <div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;border-radius:0.25rem;border:1px solid #ef4444;background:#fef2f2;">
+                <i class="fas fa-times-circle" style="color:#ef4444;"></i>
+                <span style="color:#7f1d1d;">
+                  <strong>${ingredient.name}</strong> 
+                  ${ingredient.measure ? `(${ingredient.measure})` : ''}
+                  <em style="font-size:0.75rem;margin-left:0.5rem;">- You'll need to source this elsewhere</em>
+                </span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    // Complete recipe ingredients section
+    ingredientsHTML += `
+      <div style='margin-top:1.5rem;padding:1rem;background:#f8fafc;border-radius:0.5rem;border:1px solid #e2e8f0;'>
+        <h5 style='color:#64748b;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;'>
+          <i class="fas fa-list"></i> Complete Recipe Ingredients (${apiIngredients.length})
+        </h5>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0.5rem;">
+          ${apiIngredients.map(ingredient => {
+            const isAvailable = availableIngredients.some(ai => ai.name === ingredient.name);
+            return `
+              <div style="display:flex;align-items:center;gap:0.5rem;padding:0.25rem;font-size:0.875rem;">
+                <i class="fas fa-${isAvailable ? 'check' : 'times'}" style="color:${isAvailable ? '#10b981' : '#ef4444'};"></i>
+                <span style="color:${isAvailable ? '#065f46' : '#7f1d1d'};">
+                  ${ingredient.name} ${ingredient.measure ? `(${ingredient.measure})` : ''}
+                </span>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+
+    // Show cooking instructions if available
+    if (meal.strInstructions) {
+      ingredientsHTML += `
+        <div style='margin-top:1.5rem;padding:1rem;background:#fffbeb;border-radius:0.5rem;border:1px solid #fbbf24;'>
+          <h5 style='color:#92400e;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;'>
+            <i class="fas fa-book-open"></i> Cooking Instructions
+          </h5>
+          <div style="max-height:200px;overflow-y:auto;font-size:0.875rem;line-height:1.5;color:#78350f;">
+            ${meal.strInstructions.replace(/\n/g, '<br>')}
+          </div>
+        </div>
+      `;
+    }
+
+    ingredientsDiv.innerHTML = ingredientsHTML;
+
+    // Handle form submission for available ingredients
+    const form = document.getElementById("ingredient-checkbox-form");
+    if (form) {
+      form.onsubmit = async function(e){
+        e.preventDefault();
+        const chosen = Array.from(this.querySelectorAll('input[type=checkbox]:checked'));
+        if(chosen.length === 0) {
+          showToast("No ingredients selected.", 'warning');
+          return;
         }
-        showToast(`${chosen.length} ingredients added to cart for ${meal.strMeal}!`, 'success');
-        updateCartCount();
-        ingredientsDiv.innerHTML = "";
-        document.getElementById("dish-input").value = "";
-      } catch (error) {
-        showToast('Error adding ingredients to cart: ' + error.message, 'error');
+        
+        try {
+          for (const inp of chosen) {
+            await addToCartAPI(inp.value);
+          }
+          showToast(`${chosen.length} available ingredients added to cart for ${meal.strMeal}!`, 'success');
+          updateCartCount();
+          
+          // Show reminder about unavailable ingredients
+          if (unavailableIngredients.length > 0) {
+            setTimeout(() => {
+              showToast(`Remember: ${unavailableIngredients.length} ingredients need to be sourced elsewhere`, 'info');
+            }, 2000);
+          }
+          
+          ingredientsDiv.innerHTML = "";
+          document.getElementById("dish-input").value = "";
+        } catch (error) {
+          showToast('Error adding ingredients to cart: ' + error.message, 'error');
+        }
       }
     }
 

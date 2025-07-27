@@ -350,13 +350,8 @@ body {
 }
 
 .btn-outline:hover {
-  background: #bdbec0cc;
+  background: #f9fafb;
 }
-
-.btn-outline:active {
-  background: #d7d8dbcc;
-}
-
 
 .btn-ghost {
   background: transparent;
@@ -565,8 +560,88 @@ body {
   white-space: nowrap;
 }
 
+/* Enhanced ingredient display styles */
 .ingredients-results {
   margin-top: 1rem;
+}
+
+.ingredient-section {
+  margin-bottom: 1.5rem;
+}
+
+.ingredient-section h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.available-ingredient {
+  border: 1px solid #10b981;
+  background: #f0fdf4;
+  color: #065f46;
+}
+
+.unavailable-ingredient {
+  border: 1px solid #ef4444;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.complete-recipe-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-top: 1.5rem;
+}
+
+.recipe-instructions {
+  background: #fffbeb;
+  border: 1px solid #fbbf24;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-top: 1.5rem;
+}
+
+.ingredient-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.5rem;
+}
+
+.ingredient-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.cooking-instructions {
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Enhanced visual indicators */
+.available-icon {
+  color: #10b981;
+}
+
+.unavailable-icon {
+  color: #ef4444;
+}
+
+.info-icon {
+  color: #64748b;
+}
+
+.recipe-icon {
+  color: #92400e;
 }
 
 /* Search Section */
@@ -1374,6 +1449,18 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
+  }
+
+  .ingredient-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .ingredient-section h5 {
+    font-size: 0.875rem;
+  }
+  
+  .cooking-instructions {
+    max-height: 150px;
   }
 }
 
