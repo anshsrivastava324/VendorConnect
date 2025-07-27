@@ -8,7 +8,7 @@ let authToken = null;
 // API Configuration
 const API_BASE_URL = 'http://localhost:5000/api';
 
-// Initialize from localStorage (only for auth, not cart)
+// Initialize from localStorage (only for auth, not data)
 authToken = localStorage.getItem('authToken');
 currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
 
@@ -24,6 +24,7 @@ const apiCall = async (endpoint, options = {}) => {
   };
 
   try {
+    console.log(`API Call: ${config.method || 'GET'} ${url}`);
     const response = await fetch(url, config);
     
     if (!response.ok) {
@@ -32,9 +33,10 @@ const apiCall = async (endpoint, options = {}) => {
     }
     
     const data = await response.json();
+    console.log(`API Response successful for ${endpoint}`);
     return data;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error(`API Error for ${endpoint}:`, error);
     throw error;
   }
 };
@@ -216,14 +218,18 @@ async function handleLogin(event) {
   const password = document.getElementById('login-password').value;
   const errorDiv = document.getElementById('login-error');
   
+  console.log('Attempting login with:', email);
+  
   try {
     showLoadingOverlay();
     await login(email, password);
     hideLoadingOverlay();
     
+    console.log('Login successful, user:', currentUser);
     setUserType(currentUser.userType);
     showToast('Login successful!', 'success');
   } catch (error) {
+    console.error('Login error:', error);
     hideLoadingOverlay();
     errorDiv.textContent = error.message;
     errorDiv.style.display = 'block';
@@ -250,14 +256,18 @@ async function handleRegister(event) {
   const errorDiv = document.getElementById('register-error');
   const successDiv = document.getElementById('register-success');
   
+  console.log('Attempting registration with:', userData);
+  
   try {
     showLoadingOverlay();
     await register(userData);
     hideLoadingOverlay();
     
+    console.log('Registration successful, user:', currentUser);
     setUserType(currentUser.userType);
     showToast('Registration successful!', 'success');
   } catch (error) {
+    console.error('Registration error:', error);
     hideLoadingOverlay();
     errorDiv.textContent = error.message;
     errorDiv.style.display = 'block';
@@ -267,6 +277,7 @@ async function handleRegister(event) {
 
 // User type selection
 function setUserType(type) {
+  console.log('Setting user type:', type);
   currentUserType = type;
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('landing-page').style.display = 'none';
@@ -518,7 +529,7 @@ async function renderSuppliers(products = null) {
       products = await fetchProducts();
     } catch (error) {
       console.error('Error fetching products:', error);
-      container.innerHTML = '<div class="error-state"><i class="fas fa-exclamation-circle"></i><p>Error loading suppliers. Please try again.</p></div>';
+      container.innerHTML = '<div class="error-state"><i class="fas fa-exclamation-circle"></i><p>Error loading suppliers. Please check your connection and try again.</p></div>';
       loadingSpinner.style.display = 'none';
       return;
     }
@@ -596,7 +607,7 @@ async function renderSuppliers(products = null) {
   });
 }
 
-// MongoDB-based Cart functions (NO localStorage)
+// Database-based Cart functions (Cross-device compatible)
 async function addToCartFromList(productId) {
   console.log('Adding product to cart:', productId);
   try {
@@ -672,13 +683,16 @@ const checkoutCart = async () => {
 
 async function loadVendorCart() {
   try {
+    console.log('Loading vendor cart from database...');
     const cartData = await fetchCart();
     cart = cartData.items || [];
     updateCartCount();
+    console.log(`Cart loaded: ${cart.length} items`);
   } catch (error) {
     console.error('Error loading cart:', error);
     cart = [];
     updateCartCount();
+    showToast('Unable to load cart. Please try again.', 'error');
   }
 }
 
@@ -745,7 +759,7 @@ async function renderCartItems() {
     `;
   } catch (error) {
     console.error('Error rendering cart:', error);
-    container.innerHTML = '<div class="error-state">Error loading cart</div>';
+    container.innerHTML = '<div class="error-state">Error loading cart. Please try again.</div>';
   }
 }
 
@@ -777,9 +791,6 @@ async function placeOrder() {
     showToast('Error placing order: ' + error.message, 'error');
   }
 }
-
-// Rest of the functions remain the same...
-// (Including supplier dashboard functions, product management, profile management, etc.)
 
 // Supplier Dashboard Functions
 function switchTab(tabName) {
@@ -852,57 +863,56 @@ async function renderSupplierProducts() {
       .join("");
   } catch (error) {
     console.error('Error loading products:', error);
-    container.innerHTML = '<div class="error-state">Error loading products</div>';
+    container.innerHTML = '<div class="error-state">Error loading products. Please check your connection.</div>';
   }
 }
 
-function renderRecentOrders() {
+async function renderRecentOrders() {
   const container = document.getElementById("recent-orders");
   if (!container) return;
 
-  // Mock data for now - replace with API call
-  const recentOrders = [
-    { id: "ORD001", vendor: "Raj's Vada Pav", items: "Tomatoes, Onions", amount: "₹450", status: "pending" },
-    { id: "ORD002", vendor: "Mumbai Chaat Corner", items: "Spices Mix", amount: "₹320", status: "delivered" },
-    { id: "ORD003", vendor: "Street Biryani", items: "Fresh Fish", amount: "₹1,200", status: "processing" }
-  ];
+  try {
+    container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Loading orders...</p></div>';
+    
+    const orders = await apiCall('/orders/supplier');
+    
+    if (orders.length === 0) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-shopping-bag"></i><p>No orders yet</p></div>';
+      return;
+    }
 
-  container.innerHTML = recentOrders
-    .map(
-      (order) => `
-        <div class="order-item">
-          <div class="order-info">
-            <h4>${order.id}</h4>
-            <p>${order.vendor}</p>
-            <p>${order.items}</p>
-          </div>
-          <div class="order-details">
-            <p class="order-amount">${order.amount}</p>
-            <span class="status-badge ${order.status}">${order.status.charAt(0).toUpperCase() + order.status.slice(1)}</span>
-          </div>
+    container.innerHTML = orders.slice(0, 5).map(order => `
+      <div class="order-item">
+        <div class="order-info">
+          <h4>Order #${order._id.slice(-6)}</h4>
+          <p>${order.vendor.name}</p>
+          <p>${order.items.length} items</p>
         </div>
-      `,
-    )
-    .join("");
+        <div class="order-details">
+          <p class="order-amount">₹${order.totalAmount}</p>
+          <span class="status-badge ${order.status}">${order.status.charAt(0).toUpperCase() + order.status.slice(1)}</span>
+        </div>
+      </div>
+    `).join("");
+
+  } catch (error) {
+    console.error('Error loading orders:', error);
+    container.innerHTML = '<div class="error-state">Error loading orders</div>';
+  }
 }
 
 function renderOrders() {
   const container = document.querySelector("#all-orders");
   if (!container) return;
 
-  container.innerHTML = '';
   renderRecentOrders();
-  
-  // Copy recent orders content to all orders
-  const recentOrdersContent = document.getElementById("recent-orders").innerHTML;
-  container.innerHTML = recentOrdersContent;
 }
 
 async function refreshOrders() {
   if (currentUser && currentUser.userType === 'supplier') {
     try {
       showToast('Refreshing orders...', 'info');
-      renderRecentOrders();
+      await renderRecentOrders();
       showToast('Orders refreshed!', 'success');
     } catch (error) {
       showToast('Failed to refresh orders', 'error');
@@ -978,14 +988,19 @@ async function deleteProduct(productId) {
 }
 
 // Profile Management
-function loadUserProfile() {
+async function loadUserProfile() {
   if (currentUser && currentUser.userType === 'supplier') {
-    document.getElementById('profile-business-name').value = currentUser.businessName || '';
-    document.getElementById('profile-contact-person').value = currentUser.name || '';
-    document.getElementById('profile-business-address').value = currentUser.businessAddress || '';
-    document.getElementById('profile-phone').value = currentUser.phone || '';
-    document.getElementById('profile-email').value = currentUser.email || '';
-    document.getElementById('profile-business-hours').value = currentUser.businessHours || '9:00 AM - 6:00 PM';
+    try {
+      const profile = await apiCall('/profile');
+      document.getElementById('profile-business-name').value = profile.businessName || '';
+      document.getElementById('profile-contact-person').value = profile.name || '';
+      document.getElementById('profile-business-address').value = profile.businessAddress || '';
+      document.getElementById('profile-phone').value = profile.phone || '';
+      document.getElementById('profile-email').value = profile.email || '';
+      document.getElementById('profile-business-hours').value = profile.businessHours || '9:00 AM - 6:00 PM';
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
   }
 }
 
@@ -1007,7 +1022,15 @@ async function updateProfile(event) {
       businessHours: document.getElementById('profile-business-hours').value
     };
     
-    // Mock update for now - replace with actual API call
+    await apiCall('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    });
+    
+    // Update current user data
+    currentUser = { ...currentUser, ...profileData };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    
     showToast('Profile updated successfully!', 'success');
     
   } catch (error) {
@@ -1018,8 +1041,14 @@ async function updateProfile(event) {
 
 // Utility Functions
 function showToast(message, type = 'info') {
-  const toastContainer = document.getElementById('toast-container');
-  if (!toastContainer) return;
+  // Create toast container if it doesn't exist
+  let toastContainer = document.getElementById('toast-container');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'toast-container';
+    toastContainer.className = 'toast-container';
+    document.body.appendChild(toastContainer);
+  }
   
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
@@ -1050,11 +1079,27 @@ function getToastIcon(type) {
 }
 
 function showLoadingOverlay() {
-  document.getElementById('loading-overlay').style.display = 'flex';
+  let loadingOverlay = document.getElementById('loading-overlay');
+  if (!loadingOverlay) {
+    loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'loading-overlay';
+    loadingOverlay.className = 'loading-overlay';
+    loadingOverlay.innerHTML = `
+      <div class="loading-content">
+        <i class="fas fa-spinner fa-spin fa-3x"></i>
+        <p>Loading...</p>
+      </div>
+    `;
+    document.body.appendChild(loadingOverlay);
+  }
+  loadingOverlay.style.display = 'flex';
 }
 
 function hideLoadingOverlay() {
-  document.getElementById('loading-overlay').style.display = 'none';
+  const loadingOverlay = document.getElementById('loading-overlay');
+  if (loadingOverlay) {
+    loadingOverlay.style.display = 'none';
+  }
 }
 
 // Close modals when clicking outside
@@ -1066,11 +1111,23 @@ document.addEventListener("click", (e) => {
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
-  console.log('Application starting...');
+  console.log('Application starting with MongoDB backend...');
   
   if (authToken && currentUser) {
     console.log('User found in localStorage:', currentUser);
-    setUserType(currentUser.userType);
+    // Verify token is still valid by making a test API call
+    apiCall('/profile')
+      .then(() => {
+        setUserType(currentUser.userType);
+      })
+      .catch(() => {
+        // Token is invalid, clear storage and show auth
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('currentUser');
+        authToken = null;
+        currentUser = null;
+        showAuthForms();
+      });
   } else {
     console.log('No user found, showing auth forms');
     showAuthForms();

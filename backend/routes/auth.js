@@ -1,163 +1,272 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
-const { auth } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register
-router.post('/register', [
-  body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
-  body('email').isEmail().withMessage('Please provide a valid email'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-  body('userType').isIn(['vendor', 'supplier']).withMessage('User type must be vendor or supplier'),
-  body('location').trim().isLength({ min: 2 }).withMessage('Location is required'),
-  body('phone').trim().isLength({ min: 10 }).withMessage('Valid phone number is required')
-], async (req, res) => {
+// Register new user
+router.post('/register', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    const { name, email, password, userType, phone, location, businessName, businessAddress } = req.body;
+
+    console.log('Registration attempt:', { email, userType, name });
+
+    // Validation
+    if (!name || !email || !password || !userType) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Name, email, password, and user type are required' 
+      });
     }
 
-    const { name, email, password, userType, businessName, location, phone, businessAddress } = req.body;
+    if (password.length < 6) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Password must be at least 6 characters long' 
+      });
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists with this email' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'User already exists with this email' 
+      });
     }
 
-    // Create new user
+    // Create user data
     const userData = {
       name,
       email,
       password,
       userType,
-      location,
-      phone
+      phone,
+      location
     };
 
     if (userType === 'supplier') {
       userData.businessName = businessName;
       userData.businessAddress = businessAddress;
-      userData.verified = true; // Auto-verify for demo
     }
 
     const user = new User(userData);
     await user.save();
 
+    console.log('User created successfully:', user._id);
+
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
+      { userId: user._id, email: user.email, userType: user.userType },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
+    // Update last login
+    await user.updateLastLogin();
+
     res.status(201).json({
+      success: true,
       message: 'User registered successfully',
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         userType: user.userType,
+        phone: user.phone,
+        location: user.location,
         businessName: user.businessName,
-        location: user.location
+        businessAddress: user.businessAddress,
+        verified: user.verified,
+        rating: user.rating
       }
     });
-
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during registration' 
+    });
   }
 });
 
-// Login
-router.post('/login', [
-  body('email').isEmail().withMessage('Please provide a valid email'),
-  body('password').exists().withMessage('Password is required')
-], async (req, res) => {
+// Login user
+router.post('/login', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email, password } = req.body;
 
-    // Find user by email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    console.log('Login attempt:', email);
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email and password are required' 
+      });
     }
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    // Find user
+    const user = await User.findOne({ email, isActive: true });
+    if (!user) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid email or password' 
+      });
     }
+
+    // Check password using instance method
+    const isValidPassword = await user.comparePassword(password);
+    if (!isValidPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid email or password' 
+      });
+    }
+
+    console.log('Login successful for user:', user._id);
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
+      { userId: user._id, email: user.email, userType: user.userType },
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
+    // Update last login
+    await user.updateLastLogin();
+
     res.json({
+      success: true,
       message: 'Login successful',
       token,
       user: {
-        id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         userType: user.userType,
+        phone: user.phone,
+        location: user.location,
         businessName: user.businessName,
-        location: user.location
+        businessAddress: user.businessAddress,
+        verified: user.verified,
+        rating: user.rating
       }
     });
-
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during login' 
+    });
   }
 });
 
-// Get current user
-router.get('/me', auth, async (req, res) => {
+// Get current user profile
+router.get('/profile', authenticateToken, async (req, res) => {
   try {
+    const user = await User.findById(req.user.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
     res.json({
-      user: {
-        id: req.user._id,
-        name: req.user.name,
-        email: req.user.email,
-        userType: req.user.userType,
-        businessName: req.user.businessName,
-        location: req.user.location,
-        phone: req.user.phone,
-        businessAddress: req.user.businessAddress,
-        rating: req.user.rating,
-        verified: req.user.verified
-      }
+      success: true,
+      user
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error fetching profile' 
+    });
   }
 });
 
-// Get all suppliers (for vendors)
-router.get('/suppliers', auth, async (req, res) => {
+// Update user profile
+router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const suppliers = await User.find({ 
-      userType: 'supplier', 
-      isActive: true 
-    }).select('-password');
+    const updateData = { ...req.body };
+    delete updateData.password; // Don't allow password updates through this route
+    delete updateData.email; // Don't allow email updates
+    delete updateData.userType; // Don't allow user type changes
 
-    res.json(suppliers);
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    console.log('Profile updated for user:', req.user.userId);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error updating profile:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error updating profile' 
+    });
+  }
+});
+
+// Change password
+router.put('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Current password and new password are required' 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'New password must be at least 6 characters long' 
+      });
+    }
+
+    const user = await User.findById(req.user.userId);
+    const isValidPassword = await user.comparePassword(currentPassword);
+
+    if (!isValidPassword) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Current password is incorrect' 
+      });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error changing password' 
+    });
   }
 });
 

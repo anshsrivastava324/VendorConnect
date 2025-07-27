@@ -991,23 +991,6 @@ body {
   gap: 1rem;
 }
 
-/* Checkbox styles */
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"] {
-  width: auto;
-  margin: 0;
-}
-
-.checkmark {
-  font-weight: normal;
-}
-
 /* Profile Form */
 .profile-form {
   max-width: 600px;
