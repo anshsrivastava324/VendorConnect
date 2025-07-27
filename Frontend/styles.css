@@ -350,8 +350,13 @@ body {
 }
 
 .btn-outline:hover {
-  background: #f9fafb;
+  background: #bdbec0cc;
 }
+
+.btn-outline:active {
+  background: #d7d8dbcc;
+}
+
 
 .btn-ghost {
   background: transparent;
